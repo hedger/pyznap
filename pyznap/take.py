@@ -163,10 +163,8 @@ def take_config(config):
                          .format(name_log, err.stderr.rstrip()))
             continue
         else:
-            # Take recursive snapshot of parent filesystem
-            take_filesystem(children[0], conf)
-            # Take snapshot of all children that don't have all snapshots yet
-            for child in children[1:]:
+            # Take snapshot of parent filesystem and all children that don't have all snapshots yet
+            for child in children:
                 child_name = child.name
                 # omit filesystems from rules when pattern matches the dataset name
                 omit_patterns = conf.get('omit') or []
