@@ -67,6 +67,7 @@ config for your system might look like this (remove the comments):
     yearly = 1                            # Keep 1 yearly snapshot
     snap = yes                            # Take snapshots on this filesystem
     clean = yes                           # Delete old snapshots on this filesystem
+    omit = rpool/filesystem/child*        # Omit certain children from snapshotting
     dest = backup/filesystem              # Backup this filesystem on this location
     exclude = rpool/filesystem/data/*     # Exclude these datasets for pyznap send
 
@@ -146,6 +147,7 @@ Here is a list of all options you can set in the config fie:
 | `dest`             | List of string  | Comma-separated list of destinations where to send source filesystem |
 | `dest_key`         | List of string  | Path to ssh keyfile for dest. Comma-separated list for multiple dest |
 | `compress`         | List of string  | Compression to use over ssh, supported are gzip, lzop, bzip2, pigz, xz & lz4. Default is lzop. Comma-separated list for multiple dest |
+| `omit`             | List of string  | Space-separated list of child filesystem names to not snapshot with the same rules as the parent |
 | `exclude`          | List of string  | Whitespace-separated list of datasets to exclude from sending. Exclude lists for different dests are separated by comma |
 | `raw_send`         | List of yes/no  | Use zfs raw send. Comma-separated list for multiple dest |
 | `resume`           | List of yes/no  | Use resumable send/receive. Comma-separated list for multiple dest |

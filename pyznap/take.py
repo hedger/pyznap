@@ -9,6 +9,7 @@
 """
 
 import logging
+from fnmatch import fnmatch
 from datetime import datetime, timedelta
 from subprocess import CalledProcessError
 from .ssh import SSH, SSHException
@@ -166,6 +167,13 @@ def take_config(config):
             take_filesystem(children[0], conf)
             # Take snapshot of all children that don't have all snapshots yet
             for child in children[1:]:
+                child_name = child.name
+                # omit filesystems from rules when pattern matches the dataset name
+                omit_patterns = conf.get('omit') or []
+                if any(fnmatch(child_name, pattern) for pattern in omit_patterns):
+                    logger.debug('Matched {} in omit rules, skipping...'.format(child_name))
+                    continue
+
                 take_filesystem(child, conf)
         finally:
             if ssh:
