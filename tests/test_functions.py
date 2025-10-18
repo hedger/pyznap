@@ -93,6 +93,7 @@ class TestUtils(object):
             file.write('hourly = 12\n')
             file.write('monthly = 0\n')
             file.write('clean = no\n')
+            file.write('omit = rpool/data/tmp* rpool/data/skipme\n')
             file.write('dest = backup/data, tank/data, rpool/data\n')
             file.write('compress = lzop, pigz, gzip\n\n')
 
@@ -146,6 +147,7 @@ class TestUtils(object):
             assert conf1['dest'] == ['backup/data', 'tank/data', 'rpool/data']
             assert conf1['dest_keys'] == None
             assert conf1['compress'] == ['lzop', 'pigz', 'gzip']
+            assert conf1['omit'] == ['rpool/data/tmp*', 'rpool/data/skipme']
 
             assert conf2['name'] == 'rpool/data_2'
             assert conf2['key'] == None
@@ -164,6 +166,32 @@ class TestUtils(object):
             assert conf3['dest'] == ['backup/tank', 'rpool/tank', 'data/tank', 'zpool/tank']
             assert conf3['exclude'] == [None, ['tank/media/*', 'tank/data*', 'tank/home/*'], ['tank/media*', 'tank/home*']]
 
+
+
+    def test_read_config_multiple_names(self):
+        with NamedTemporaryFile('w') as file:
+            name = file.name
+            file.write('[tank]\n')
+            file.write('frequent = 3\n')
+            file.write('daily = 5\n')
+            file.write('snap = yes\n')
+            file.write('clean = no\n\n')
+
+            file.write('[tank/data0 tank/data1]\n')
+            file.write('hourly = 12\n')
+            file.write('snap = yes\n\n')
+            file.seek(0)
+
+            config = read_config(name)
+
+        assert [entry['name'] for entry in config] == ['tank', 'tank/data0', 'tank/data1']
+        child0, child1 = config[1], config[2]
+        for child in (child0, child1):
+            assert child['hourly'] == 12
+            assert child['frequent'] == 3
+            assert child['daily'] == 5
+            assert child['snap'] is True
+            assert child['clean'] is False
 
 
     def test_parse_name(self):
@@ -217,6 +245,47 @@ class TestSnapshot(object):
 
 
     @pytest.mark.dependency(depends=['TestSnapshot::test_clean_snapshot'])
+    def test_take_snapshot_with_omit(self, zpools):
+        fs, _ = zpools
+
+        # ensure we start without leftover snapshots on parent
+        for snap in fs.snapshots():
+            snap.destroy(force=True)
+
+        include_child = zfs.create('{:s}/include_me'.format(fs.name))
+        skip_child = zfs.create('{:s}/skip_me'.format(fs.name))
+
+        config = [{'name': fs.name,
+                   'frequent': 1,
+                   'hourly': 0,
+                   'daily': 0,
+                   'weekly': 0,
+                   'monthly': 0,
+                   'yearly': 0,
+                   'snap': True,
+                   'omit': [skip_child.name]}]
+
+        take_config(config)
+
+        # parent still receives snapshots
+        assert len(fs.snapshots()) == 1
+
+        # included child should have matching snapshot count
+        include_snaps = include_child.snapshots()
+        assert len(include_snaps) == 1
+        assert include_snaps[0].name.split('@')[0] == include_child.name
+
+        # skipped child should have no snapshots
+        assert len(skip_child.snapshots()) == 0
+
+        # cleanup
+        for snap in fs.snapshots():
+            snap.destroy(force=True)
+        include_child.destroy(force=True)
+        skip_child.destroy(force=True)
+
+
+    @pytest.mark.dependency(depends=['TestSnapshot::test_take_snapshot_with_omit'])
     def test_take_snapshot_recursive(self, zpools):
         fs, _ = zpools
         fs.destroy(force=True)

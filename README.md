@@ -71,6 +71,13 @@ config for your system might look like this (remove the comments):
     dest = backup/filesystem              # Backup this filesystem on this location
     exclude = rpool/filesystem/data/*     # Exclude these datasets for pyznap send
 
+You can apply the same policy to multiple datasets by listing them in the section header separated
+by spaces, for example:
+
+    [rpool/filesystem/logs rpool/filesystem/temp]
+    hourly = 12
+    snap = yes
+
 Then set up a cronjob by creating a file under `/etc/cron.d/`
 
     nano /etc/cron.d/pyznap

@@ -12,6 +12,7 @@ import os
 import re
 import logging
 import pathlib
+from copy import deepcopy
 from subprocess import Popen, PIPE, TimeoutExpired, CalledProcessError
 from .process import run
 from .ssh import SSHException
@@ -89,37 +90,41 @@ def read_config(path):
                'retries', 'retry_interval', 'omit']
 
     for section in parser.sections():
-        dic = {}
-        config.append(dic)
-        dic['name'] = section
+        section_names = section.split()
+        base_conf = {}
 
         for option in options:
             try:
                 value = parser.get(section, option)
             except NoOptionError:
-                dic[option] = None
+                base_conf[option] = None
             else:
                 if option in ['key']:
-                    dic[option] = value if os.path.isfile(value) else None
+                    base_conf[option] = value if os.path.isfile(value) else None
                 elif option in ['frequent', 'hourly', 'daily', 'weekly', 'monthly', 'yearly']:
-                    dic[option] = int(value)
+                    base_conf[option] = int(value)
                 elif option in ['snap', 'clean']:
-                    dic[option] = {'yes': True, 'no': False}.get(value.lower(), None)
+                    base_conf[option] = {'yes': True, 'no': False}.get(value.lower(), None)
                 elif option in ['dest', 'compress']:
-                    dic[option] = [i.strip() for i in value.split(',')]
+                    base_conf[option] = [i.strip() for i in value.split(',')]
                 elif option in ['dest_keys']:
-                    dic[option] = [i.strip() if os.path.isfile(i.strip()) else None
-                                   for i in value.split(',')]
+                    base_conf[option] = [i.strip() if os.path.isfile(i.strip()) else None
+                                         for i in value.split(',')]
                 elif option in ['exclude']:
-                    dic[option] = [[i.strip() for i in s.strip().split(' ')] if s.strip() else None
-                                    for s in value.split(',')]
+                    base_conf[option] = [[i.strip() for i in s.strip().split(' ')] if s.strip() else None
+                                         for s in value.split(',')]
                 elif option in ['raw_send', 'resume', 'dest_auto_create']:
-                    dic[option] = [{'yes': True, 'no': False}.get(i.strip().lower(), None)
-                                   for i in value.split(',')]
+                    base_conf[option] = [{'yes': True, 'no': False}.get(i.strip().lower(), None)
+                                         for i in value.split(',')]
                 elif option in ['retries', 'retry_interval']:
-                    dic[option] = [int(i) for i in value.split(',')]
+                    base_conf[option] = [int(i) for i in value.split(',')]
                 elif option in ['omit']:
-                    dic[option] = [i.strip() for i in value.split(' ')]
+                    base_conf[option] = [i.strip() for i in value.split(' ')]
+
+        for entry_name in section_names:
+            dic = deepcopy(base_conf)
+            dic['name'] = entry_name
+            config.append(dic)
     # Pass through values recursively
     for parent in config:
         for child in config:
